@@ -31,7 +31,7 @@ async function accountNew() {
     //Create a new account with 1,000 tinybar starting balance
     const newAccount = await new AccountCreateTransaction()
       .setKey(newAccountPublicKey)
-      .setInitialBalance(Hbar.fromTinybars(1000))
+      .setInitialBalance(Hbar.fromTinybars(0))
       .execute(client);
 
     const getReceipt = await newAccount.getReceipt(client);
