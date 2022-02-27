@@ -19,7 +19,6 @@ cors({ origin: "http://localhost:3030" });
 
 const clientAccountId = process.env.MY_ACCOUNT_ID;
 const clientPrivateKey = process.env.MY_PRIVATE_KEY;
-
 const client = Client.forTestnet();
 client.setOperator(clientAccountId, clientPrivateKey);
 
@@ -29,9 +28,6 @@ async function accountNew() {
     const newAccountPrivateKey = await PrivateKey.generateED25519();
     const newAccountPublicKey = newAccountPrivateKey.publicKey;
 
-    console.log("Private key = " + newAccountPrivateKey);
-    console.log("Public key = " + newAccountPublicKey);
-
     //Create a new account with 1,000 tinybar starting balance
     const newAccount = await new AccountCreateTransaction()
       .setKey(newAccountPublicKey)
@@ -40,21 +36,15 @@ async function accountNew() {
 
     const getReceipt = await newAccount.getReceipt(client);
     const newAccountId = getReceipt.accountId;
-    console.log("The new account ID is: " + newAccountId);
 
     //Verify the account balance
     const accountBalance = await new AccountBalanceQuery()
       .setAccountId(newAccountId)
       .execute(client);
-    console.log(
-      "The new account balance is: " +
-        accountBalance.hbars.toTinybars() +
-        " tinybar."
-    );
 
     return (accountInfo = {
       newAccountId: newAccountId.toString(),
-      privatekey: newAccountPrivateKey.toString(),
+      privateKey: newAccountPrivateKey.toString(),
       publicKey: newAccountPublicKey.toString(),
     });
   } catch (err) {
@@ -66,12 +56,12 @@ async function accountNew() {
 async function transactionNew(req) {
   try {
     let hexTransactionHash = "";
-    let { newAccountId, amount } = req.body;
+    console.log(req.body);
+    let { toAccountId, amount } = req.body;
     const sendHbar = await new TransferTransaction()
       .addHbarTransfer(clientAccountId, Hbar.fromTinybars(amount * -1))
-      .addHbarTransfer(newAccountId, Hbar.fromTinybars(amount))
+      .addHbarTransfer(toAccountId, Hbar.fromTinybars(amount))
       .execute(client);
-    console.log(typeof sendHbar.transactionHash);
 
     //Verify the transaction reached consensus
     const transactionReceipt = await sendHbar.getReceipt(client);
@@ -82,20 +72,17 @@ async function transactionNew(req) {
 
     //Request the cost of the query
     const queryCost = await new AccountBalanceQuery()
-      .setAccountId(newAccountId)
+      .setAccountId(toAccountId)
       .getCost(client);
 
     //Check the new account's balance
     const getNewBalance = await new AccountBalanceQuery()
-      .setAccountId(newAccountId)
+      .setAccountId(toAccountId)
       .execute(client);
 
     const getClientBalance = await new AccountBalanceQuery()
       .setAccountId(clientAccountId)
       .execute(client);
-
-    //const newTransactionHash = Object.values(sendHbar.transactionHash);
-    console.log(sendHbar.transactionHash);
 
     for (val of Object.values(sendHbar.transactionHash)) {
       hexTransactionHash += val.toString(16);
@@ -104,7 +91,7 @@ async function transactionNew(req) {
     return (transactionInfo = {
       transactionHash: hexTransactionHash,
       newAccountBalance: getNewBalance.hbars.toTinybars().toString(),
-      clientAccountBalance: getNewBalance.hbars.toTinybars().toString(),
+      clientAccountBalance: getClientBalance.hbars.toTinybars().toString(),
       tranStatus: transactionReceipt.status.toString(),
     });
   } catch (err) {
@@ -115,14 +102,14 @@ async function transactionNew(req) {
 
 app.post("/transactionNew", (req, res) => {
   transactionNew(req).then((transactionInfo) => {
-    //res.header("Access-Control-Allow-Origin:", "http://localhost:3030");
+    console.log(transactionInfo);
     res.send(transactionInfo);
   });
 });
 
 app.post("/accountNew", (req, res) => {
   accountNew().then((accountInfo) => {
-    //res.header("Access-Control-Allow-Origin:", "http://localhost:3030");
+    console.log(accountInfo);
     res.send(accountInfo);
   });
 });
